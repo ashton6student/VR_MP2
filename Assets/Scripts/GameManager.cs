@@ -3,50 +3,86 @@ using TMPro;
 
 public class GameManager : MonoBehaviour
 {
+    [Header("Donut Settings")]
     [SerializeField] private GameObject donutPrefab;
     [SerializeField] private Transform donutSpawnPoint;
-    [SerializeField] private int donutCount;
     [SerializeField] private TMP_Text donutCountText;
+    [SerializeField] private float donutLifetime = 3f;
+
+    [Header("Ice Cream Settings")]
+    [SerializeField] private TMP_Text iceCreamCountText;
+    [SerializeField] private float iceCreamBaseRate = 5f;
+    private float iceCreamCount;
+
+    [Header("Oompa Loompa Settings")]
     [SerializeField] private TMP_Text oompaCountText;
-    [SerializeField] private int oompaLoompaCount;
+    [SerializeField] private TMP_Text oompaCostText;
+    [SerializeField] private int oompaLoompaCount = 1;
     [SerializeField] private int oompaLoompaPrice = 3;
     [SerializeField] private float oompaLoompaPriceMultiplier = 1.1f;
+    [SerializeField] private float baseProductionRate = 1f;
 
-    private float donutProductionTimer;
-    private const float DonutProductionInterval = 1f;
+    [Header("Power-ups")]
+    [SerializeField] private float rateMultiplier = 1f;
 
-    public int DonutCount => donutCount;
+    private float donutCount;
+
+    public int DonutCountInt => Mathf.FloorToInt(donutCount);
+    public int IceCreamCountInt => Mathf.FloorToInt(iceCreamCount);
     public int OompaLoompaCount => oompaLoompaCount;
     public int OompaLoompaPrice => oompaLoompaPrice;
+    public float RateMultiplier => rateMultiplier;
+
+    private void Awake()
+    {
+        if (oompaLoompaCount <= 0)
+        {
+            oompaLoompaCount = 1;
+        }
+    }
 
     private void Update()
     {
         ProduceDonutsFromOompaLoompas();
+        ProduceIceCream();
+        UpdateUI();
+    }
 
+    private void ProduceDonutsFromOompaLoompas()
+    {
+        if (oompaLoompaCount <= 0) return;
+
+        // Euler integration: value += rate * deltaTime
+        float rate = oompaLoompaCount * baseProductionRate * rateMultiplier;
+        donutCount += rate * Time.deltaTime;
+    }
+
+    private void ProduceIceCream()
+    {
+        // Euler integration: value += rate * deltaTime
+        iceCreamCount += iceCreamBaseRate * Time.deltaTime;
+    }
+
+    private void UpdateUI()
+    {
         if (donutCountText != null)
         {
-            donutCountText.text = donutCount.ToString();
+            donutCountText.text = Mathf.FloorToInt(donutCount).ToString();
+        }
+
+        if (iceCreamCountText != null)
+        {
+            iceCreamCountText.text = Mathf.FloorToInt(iceCreamCount).ToString();
         }
 
         if (oompaCountText != null)
         {
             oompaCountText.text = oompaLoompaCount.ToString();
         }
-    }
 
-    private void ProduceDonutsFromOompaLoompas()
-    {
-        if (oompaLoompaCount <= 0)
+        if (oompaCostText != null)
         {
-            return;
-        }
-
-        donutProductionTimer += Time.deltaTime;
-
-        while (donutProductionTimer >= DonutProductionInterval)
-        {
-            donutCount += oompaLoompaCount;
-            donutProductionTimer -= DonutProductionInterval;
+            oompaCostText.text = oompaLoompaPrice.ToString();
         }
     }
 
@@ -61,19 +97,30 @@ public class GameManager : MonoBehaviour
         Vector3 spawnPosition = donutSpawnPoint != null ? donutSpawnPoint.position : transform.position;
         Quaternion spawnRotation = donutSpawnPoint != null ? donutSpawnPoint.rotation : Quaternion.identity;
 
-        Instantiate(donutPrefab, spawnPosition, spawnRotation);
+        GameObject donut = Instantiate(donutPrefab, spawnPosition, spawnRotation);
+        Destroy(donut, donutLifetime);
+
         donutCount += 1;
     }
 
     public void BuyOompaLoompa()
     {
-        if (donutCount < oompaLoompaPrice)
-        {
-            return;
-        }
+        if (Mathf.FloorToInt(donutCount) < oompaLoompaPrice) return;
 
         donutCount -= oompaLoompaPrice;
         oompaLoompaCount += 1;
         oompaLoompaPrice = Mathf.CeilToInt(oompaLoompaPrice * oompaLoompaPriceMultiplier);
+    }
+
+    public void ApplyRateMultiplier(float multiplier)
+    {
+        rateMultiplier *= multiplier;
+    }
+
+    public bool TrySpend(int amount)
+    {
+        if (Mathf.FloorToInt(donutCount) < amount) return false;
+        donutCount -= amount;
+        return true;
     }
 }

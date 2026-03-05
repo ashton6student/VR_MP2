@@ -12,7 +12,7 @@ public class GameManager : MonoBehaviour
     [Header("Coffee Settings")]
     [SerializeField] private TMP_Text coffeeCountText;
     [SerializeField] private TMP_Text coffeeMultiplierText;
-    [SerializeField] private float coffeeBaseRate = 5f;
+    [SerializeField] private float coffeeBaseRate = 0.1f;
     [SerializeField] private float coffeeMultiplierGainPerCoffee = 0.01f;
     private float coffeeCount;
 

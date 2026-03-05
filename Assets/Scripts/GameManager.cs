@@ -9,10 +9,21 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TMP_Text donutCountText;
     [SerializeField] private float donutLifetime = 3f;
 
-    [Header("Ice Cream Settings")]
-    [SerializeField] private TMP_Text iceCreamCountText;
-    [SerializeField] private float iceCreamBaseRate = 5f;
-    private float iceCreamCount;
+    [Header("Coffee Settings")]
+    [SerializeField] private TMP_Text coffeeCountText;
+    [SerializeField] private TMP_Text coffeeMultiplierText;
+    [SerializeField] private float coffeeBaseRate = 5f;
+    [SerializeField] private float coffeeMultiplierGainPerCoffee = 0.01f;
+    private float coffeeCount;
+
+    [Header("Coffee Unlock Panel")]
+    [SerializeField] private GameObject coffeePanel;
+    [SerializeField] private TMP_Text coffeeUnlockCostText;
+    [SerializeField] private int coffeeUnlockCost = 100;
+    [SerializeField] private Vector3 coffeePanelHiddenLocalPosition = new Vector3(0f, -3f, 0f);
+    [SerializeField] private Vector3 coffeePanelShownLocalPosition = Vector3.zero;
+    [SerializeField] private float coffeePanelRaiseSpeed = 3f;
+    private bool coffeeUnlocked;
 
     [Header("Oompa Loompa Settings")]
     [SerializeField] private TMP_Text oompaCountText;
@@ -24,14 +35,18 @@ public class GameManager : MonoBehaviour
 
     [Header("Power-ups")]
     [SerializeField] private float rateMultiplier = 1f;
+    [SerializeField] private float coffeeMultiplier = 1f;
 
     private float donutCount;
 
     public int DonutCountInt => Mathf.FloorToInt(donutCount);
-    public int IceCreamCountInt => Mathf.FloorToInt(iceCreamCount);
+    public int CoffeeCountInt => Mathf.FloorToInt(coffeeCount);
+    public int IceCreamCountInt => CoffeeCountInt;
     public int OompaLoompaCount => oompaLoompaCount;
     public int OompaLoompaPrice => oompaLoompaPrice;
     public float RateMultiplier => rateMultiplier;
+    public float CoffeeMultiplier => coffeeMultiplier;
+    public bool CoffeeUnlocked => coffeeUnlocked;
 
     private void Awake()
     {
@@ -44,12 +59,14 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         LoadGame();
+        ApplyCoffeePanelStateInstant();
     }
 
     private void Update()
     {
         ProduceDonutsFromOompaLoompas();
-        ProduceIceCream();
+        ProduceCoffee();
+        UpdateCoffeePanelAnimation();
         UpdateUI();
     }
 
@@ -68,14 +85,20 @@ public class GameManager : MonoBehaviour
         if (oompaLoompaCount <= 0) return;
 
         // Euler integration: value += rate * deltaTime
-        float rate = oompaLoompaCount * baseProductionRate * rateMultiplier;
+        float rate = oompaLoompaCount * baseProductionRate * rateMultiplier * coffeeMultiplier;
         donutCount += rate * Time.deltaTime;
     }
 
-    private void ProduceIceCream()
+    private void ProduceCoffee()
     {
         // Euler integration: value += rate * deltaTime
-        iceCreamCount += iceCreamBaseRate * Time.deltaTime;
+        float produced = coffeeBaseRate * coffeeMultiplier * Time.deltaTime;
+        coffeeCount += produced;
+
+        if (produced > 0f && coffeeMultiplierGainPerCoffee > 0f)
+        {
+            coffeeMultiplier += produced * coffeeMultiplierGainPerCoffee;
+        }
     }
 
     private void UpdateUI()
@@ -85,9 +108,19 @@ public class GameManager : MonoBehaviour
             donutCountText.text = Mathf.FloorToInt(donutCount).ToString();
         }
 
-        if (iceCreamCountText != null)
+        if (coffeeCountText != null)
         {
-            iceCreamCountText.text = Mathf.FloorToInt(iceCreamCount).ToString();
+            coffeeCountText.text = Mathf.FloorToInt(coffeeCount).ToString();
+        }
+
+        if (coffeeMultiplierText != null)
+        {
+            coffeeMultiplierText.text = coffeeMultiplier.ToString("F2") + "x";
+        }
+
+        if (coffeeUnlockCostText != null)
+        {
+            coffeeUnlockCostText.text = coffeeUnlocked ? "Unlocked" : coffeeUnlockCost.ToString();
         }
 
         if (oompaCountText != null)
@@ -103,18 +136,16 @@ public class GameManager : MonoBehaviour
 
     public void SpawnDonut()
     {
-        if (donutPrefab == null)
-        {
-            Debug.LogWarning("Donut prefab is not assigned.");
-            return;
-        }
+        // if (donutPrefab == null)
+        // {
+        //     Debug.LogWarning("Donut prefab is not assigned.");
+        //     return;
+        // }
 
-        Vector3 spawnPosition = donutSpawnPoint != null ? donutSpawnPoint.position : transform.position;
-        Quaternion spawnRotation = donutSpawnPoint != null ? donutSpawnPoint.rotation : Quaternion.identity;
+        // Vector3 spawnPosition = donutSpawnPoint != null ? donutSpawnPoint.position : transform.position;
+        // Quaternion spawnRotation = donutSpawnPoint != null ? donutSpawnPoint.rotation : Quaternion.identity;
 
-        GameObject donut = Instantiate(donutPrefab, spawnPosition, spawnRotation);
-        Destroy(donut, donutLifetime);
-
+        // GameObject donut = Instantiate(donutPrefab, spawnPosition, spawnRotation);
         donutCount += 1;
     }
 
@@ -132,6 +163,24 @@ public class GameManager : MonoBehaviour
         rateMultiplier *= multiplier;
     }
 
+    public void IncreaseCoffeeMultiplierGainPerCoffee(float amount)
+    {
+        if (amount <= 0f) return;
+        coffeeMultiplierGainPerCoffee += amount;
+    }
+
+    public void TryUnlockCoffee()
+    {
+        Debug.Log("Attempting to unlock coffee... + Current donuts: " + Mathf.FloorToInt(donutCount) + ", Cost: " + coffeeUnlockCost);
+
+        if (coffeeUnlocked) return;
+        if (!TrySpend(coffeeUnlockCost)) return;
+        
+        Debug.Log("Coffee unlocked!");
+        coffeeUnlocked = true;
+    }
+
+
     public bool TrySpend(int amount)
     {
         if (Mathf.FloorToInt(donutCount) < amount) return false;
@@ -144,10 +193,12 @@ public class GameManager : MonoBehaviour
     private void SaveGame()
     {
         PlayerPrefs.SetFloat("donutCount", donutCount);
-        PlayerPrefs.SetFloat("iceCreamCount", iceCreamCount);
+        PlayerPrefs.SetFloat("coffeeCount", coffeeCount);
         PlayerPrefs.SetInt("oompaLoompaCount", oompaLoompaCount);
         PlayerPrefs.SetInt("oompaLoompaPrice", oompaLoompaPrice);
         PlayerPrefs.SetFloat("rateMultiplier", rateMultiplier);
+        PlayerPrefs.SetFloat("coffeeMultiplier", coffeeMultiplier);
+        PlayerPrefs.SetInt("coffeeUnlocked", coffeeUnlocked ? 1 : 0);
         PlayerPrefs.SetString("lastSaveTime", System.DateTime.UtcNow.ToString("o"));
         PlayerPrefs.Save();
     }
@@ -157,10 +208,12 @@ public class GameManager : MonoBehaviour
         if (!PlayerPrefs.HasKey("lastSaveTime")) return;
 
         donutCount = PlayerPrefs.GetFloat("donutCount", 0f);
-        iceCreamCount = PlayerPrefs.GetFloat("iceCreamCount", 0f);
+        coffeeCount = PlayerPrefs.GetFloat("coffeeCount", PlayerPrefs.GetFloat("iceCreamCount", 0f));
         oompaLoompaCount = PlayerPrefs.GetInt("oompaLoompaCount", 1);
         oompaLoompaPrice = PlayerPrefs.GetInt("oompaLoompaPrice", 3);
         rateMultiplier = PlayerPrefs.GetFloat("rateMultiplier", 1f);
+        coffeeMultiplier = PlayerPrefs.GetFloat("coffeeMultiplier", 1f);
+        coffeeUnlocked = PlayerPrefs.GetInt("coffeeUnlocked", 0) == 1;
 
         // Idle Progress: one Euler step for time away
         string lastTime = PlayerPrefs.GetString("lastSaveTime", "");
@@ -169,9 +222,37 @@ public class GameManager : MonoBehaviour
         {
             float secondsAway = (float)(System.DateTime.UtcNow - lastSave).TotalSeconds;
 
-            donutCount += oompaLoompaCount * baseProductionRate * rateMultiplier * secondsAway;
-            iceCreamCount += iceCreamBaseRate * secondsAway;
+            float donutRate = oompaLoompaCount * baseProductionRate * rateMultiplier * coffeeMultiplier;
+            donutCount += donutRate * secondsAway;
+
+            float coffeeProduced = coffeeBaseRate * coffeeMultiplier * secondsAway;
+            coffeeCount += coffeeProduced;
+            coffeeMultiplier += coffeeProduced * coffeeMultiplierGainPerCoffee;
         }
+    }
+
+    private void ApplyCoffeePanelStateInstant()
+    {
+        if (coffeePanel == null) return;
+
+        coffeePanel.SetActive(true);
+        Transform panelTransform = coffeePanel.transform;
+        panelTransform.localPosition = coffeeUnlocked ? coffeePanelShownLocalPosition : coffeePanelHiddenLocalPosition;
+    }
+
+    private void UpdateCoffeePanelAnimation()
+    {
+        if (coffeePanel == null) return;
+
+        coffeePanel.SetActive(true);
+        Transform panelTransform = coffeePanel.transform;
+        Vector3 target = coffeeUnlocked ? coffeePanelShownLocalPosition : coffeePanelHiddenLocalPosition;
+
+        panelTransform.localPosition = Vector3.MoveTowards(
+            panelTransform.localPosition,
+            target,
+            coffeePanelRaiseSpeed * Time.deltaTime
+        );
     }
 
     // ---- Reset ----
@@ -182,9 +263,13 @@ public class GameManager : MonoBehaviour
         PlayerPrefs.Save();
 
         donutCount = 0f;
-        iceCreamCount = 0f;
+        coffeeCount = 0f;
         oompaLoompaCount = 1;
         oompaLoompaPrice = 3;
         rateMultiplier = 1f;
+        coffeeMultiplier = 1f;
+        coffeeUnlocked = false;
+
+        ApplyCoffeePanelStateInstant();
     }
 }

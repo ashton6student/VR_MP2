@@ -3760,7 +3760,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Spin
   axis: {x: 0, y: 1, z: 0}
-  degreesPerSecond: 10
+  degreesPerSecond: 45
+  bobAmplitude: 0.1
+  bobSpeed: 1
 --- !u!1001 &1332848265
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4239,7 +4241,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Spin
   axis: {x: 0, y: 1, z: 0}
-  degreesPerSecond: 10
+  degreesPerSecond: 45
+  bobAmplitude: 0.1
+  bobSpeed: 1
 --- !u!1 &1586567932
 GameObject:
   m_ObjectHideFlags: 0

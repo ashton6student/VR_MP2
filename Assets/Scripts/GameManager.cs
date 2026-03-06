@@ -12,6 +12,7 @@ public class GameManager : MonoBehaviour
     [Header("Coffee Settings")]
     [SerializeField] private TMP_Text coffeeCountText;
     [SerializeField] private TMP_Text coffeeMultiplierText;
+    [SerializeField] private TMP_Text coffeePerCoffeeMultiplierText;
     [SerializeField] private TMP_Text coffeeProductionText;
     [SerializeField] private TMP_Text coffeeMultiplierUpgradeCostText;
     [SerializeField] private TMP_Text coffeeProductionUpgradeCostText;
@@ -160,6 +161,12 @@ public class GameManager : MonoBehaviour
         if (coffeeMultiplierText != null)
         {
             coffeeMultiplierText.text = GetCoffeeMultiplierGain().ToString("F2") + "x";
+        }
+
+        if (coffeePerCoffeeMultiplierText != null)
+        {
+            float perCoffeeMultiplierValue = coffeeMultiplierGainPerCoffee * coffeeMultiplier;
+            coffeePerCoffeeMultiplierText.text = perCoffeeMultiplierValue.ToString("F3") + "x/coffee";
         }
 
         if (coffeeProductionText != null)
